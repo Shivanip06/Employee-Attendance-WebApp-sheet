@@ -8,4 +8,5 @@ This is a web application built using Google Apps Script and Google Sheets. It i
 
 ## Test Credentials
 To test the web app, please use the following login details:
-- **Employee ID:** 101
+- **Employee ID:** 1001
+- **Password:** 1234
