@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    h2 { text-align: center; color: #333; }
+    input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { background-color: #4CAF50; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px;}
+    button:hover { background-color: #45a049; }
+    .nav { display: none; display: flex; justify-content: space-around; background: #333; padding: 10px; border-radius: 5px; margin-bottom: 20px;}
+    .nav button { width: auto; background: none; margin: 0; padding: 10px 15px; font-weight: bold; color: white;}
+    .nav button:hover { background: #555; }
+    .section { display: none; }
+    #loginSection { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #4CAF50; color: white; }
+    .punch-btn { background-color: #008CBA; }
+    .punch-out-btn { background-color: #f44336; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  
+  <div id="loginSection" class="section">
+    <h2>Login System</h2>
+    <input type="text" id="empId" placeholder="Employee ID (e.g. 101)">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p id="loginMsg" style="color:red; text-align:center;"></p>
+  </div>
+
+  <div id="navMenu" class="nav" style="display:none;">
+    <button onclick="showSection('punchSection')">Punch</button>
+    <button onclick="showSection('historySection'); loadHistory();">My History</button>
+    <!-- Hardcoded to ALWAYS show Admin Panel -->
+    <button id="adminTab" onclick="showSection('adminSection'); loadEmployees();" style="color:gold;">Admin Panel</button>
+    <button onclick="logout()" style="color:#ff4d4d;">Logout</button>
+  </div>
+
+  <div id="punchSection" class="section">
+    <h2>Welcome, <span id="empName"></span>!</h2>
+    <p>Record your attendance for today:</p>
+    <button class="punch-btn" onclick="markAttendance('in')">Punch In</button>
+    <button class="punch-out-btn" onclick="markAttendance('out')">Punch Out</button>
+    <p id="dashMsg" style="color:green; text-align:center; font-weight:bold;"></p>
+  </div>
+
+  <div id="historySection" class="section">
+    <h2>Attendance History</h2>
+    <p id="histMsg">Loading...</p>
+    <table>
+      <thead><tr><th>Date</th><th>Punch In</th><th>Punch Out</th></tr></thead>
+      <tbody id="historyTableBody"></tbody>
+    </table>
+  </div>
+
+  <div id="adminSection" class="section">
+    <h2>Manage Employees</h2>
+    <div style="background:#f9f9f9; padding:15px; border:1px solid #ccc; margin-bottom:20px;">
+      <h3>Add New Employee</h3>
+      <input type="text" id="newId" placeholder="New Emp ID">
+      <input type="text" id="newName" placeholder="Full Name">
+      <input type="email" id="newEmail" placeholder="Email">
+      <input type="text" id="newPass" placeholder="Password">
+      <select id="newRole">
+        <option value="Employee">Employee</option>
+        <option value="Admin">Admin</option>
+      </select>
+      <button onclick="addNewEmployee()">Add Employee</button>
+      <p id="adminMsg" style="color:green;"></p>
+    </div>
+    <h3>Employee List</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Role</th></tr></thead>
+      <tbody id="empTableBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  let currentEmpId = "";
+
+  function showSection(sectionId) {
+    document.getElementById('punchSection').style.display = 'none';
+    document.getElementById('historySection').style.display = 'none';
+    document.getElementById('adminSection').style.display = 'none';
+    if(sectionId !== 'empty') {
+      document.getElementById(sectionId).style.display = 'block';
+    }
+  }
+
+  function login() {
+    var id = document.getElementById("empId").value;
+    var pass = document.getElementById("password").value;
+    document.getElementById("loginMsg").innerText = "Verifying...";
+    
+    google.script.run.withSuccessHandler(function(result) {
+      if(result.success) {
+        currentEmpId = id;
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("navMenu").style.display = "flex";
+        document.getElementById("empName").innerText = result.name;
+        showSection('punchSection');
+      } else {
+        document.getElementById("loginMsg").innerText = result.message;
+      }
+    }).verifyLogin(id, pass);
+  }
+
+  function logout() {
+    currentEmpId = "";
+    document.getElementById("loginSection").style.display = "block";
+    document.getElementById("navMenu").style.display = "none";
+    showSection('empty');
+    document.getElementById("empId").value = "";
+    document.getElementById("password").value = "";
+    document.getElementById("loginMsg").innerText = "";
+  }
+
+  function markAttendance(type) {
+    document.getElementById("dashMsg").innerText = "Saving...";
+    var loc = "Location tracking skipped";
+    
+    if(type === 'in') {
+      google.script.run.withSuccessHandler(function(msg){
+        document.getElementById("dashMsg").innerText = msg;
+      }).punchIn(currentEmpId, loc);
+    } else {
+      google.script.run.withSuccessHandler(function(msg){
+        document.getElementById("dashMsg").innerText = msg;
+      }).punchOut(currentEmpId, loc);
+    }
+  }
+
+  function loadHistory() {
+    document.getElementById("histMsg").innerText = "Loading data...";
+    google.script.run.withSuccessHandler(function(data) {
+      document.getElementById("histMsg").innerText = "";
+      var tbody = document.getElementById("historyTableBody");
+      tbody.innerHTML = "";
+      for(var i=0; i<data.length; i++) {
+        tbody.innerHTML += "<tr><td>" + data[i][0] + "</td><td>" + data[i][1] + "</td><td>" + data[i][2] + "</td></tr>";
+      }
+      if(data.length === 0) tbody.innerHTML = "<tr><td colspan='3'>No history found for ID: " + currentEmpId + "</td></tr>";
+    }).getMyHistory(currentEmpId);
+  }
+
+  function loadEmployees() {
+    google.script.run.withSuccessHandler(function(data) {
+      var tbody = document.getElementById("empTableBody");
+      tbody.innerHTML = "";
+      for(var i=0; i<data.length; i++) {
+        tbody.innerHTML += "<tr><td>" + data[i][0] + "</td><td>" + data[i][1] + "</td><td>" + data[i][2] + "</td></tr>";
+      }
+    }).getAllEmployees();
+  }
+
+  function addNewEmployee() {
+    var id = document.getElementById("newId").value;
+    var name = document.getElementById("newName").value;
+    var email = document.getElementById("newEmail").value;
+    var pass = document.getElementById("newPass").value;
+    var role = document.getElementById("newRole").value;
+    
+    if(!id || !name || !pass) {
+      alert("ID, Name, and Password are required!");
+      return;
+    }
+    document.getElementById("adminMsg").innerText = "Adding...";
+    google.script.run.withSuccessHandler(function(msg) {
+      document.getElementById("adminMsg").innerText = msg;
+      loadEmployees();
+      document.getElementById("newId").value = "";
+      document.getElementById("newName").value = "";
+      document.getElementById("newEmail").value = "";
+      document.getElementById("newPass").value = "";
+    }).addEmployee(id, name, email, pass, role);
+  }
+</script>
+</body>
+</html>
